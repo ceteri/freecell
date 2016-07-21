@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from array import array
 import collections
 import operator
 import sys
@@ -202,8 +201,8 @@ class Game:
     print
 
 
-  def quick_win(self):
-    """is the game a quick win at this point?"""
+  def test_win(self, verbose=False):
+    """is the game won at this point?"""
     quick_win = True
 
     for s in self.cascades:
@@ -219,7 +218,8 @@ class Game:
         if gradient < 0:
           quick_win = False
 
-      print [g for g in g_list]
+      if verbose:
+        print [g for g in g_list]
 
     return quick_win
 
@@ -276,9 +276,14 @@ class Game:
     print "incomprehsible garble...%s\n" % (line)
 
 
-  def run_line(self, raw_line):
-    """run one line of input"""
+  def replay(self, log):
+    """replay the log, line by line"""
+    for log_line in log.split(";"):
+      self.one_line(log_line)
 
+
+  def one_line(self, raw_line):
+    """run one line of input"""
     try:
       line = raw_line.strip().upper().split(" ")
       op = " ".join(line)
@@ -286,8 +291,7 @@ class Game:
       if "QUIT".startswith(line[0]):
         self.quit_loop()
       elif "REPLAY".startswith(line[0]):
-        for log_line in " ".join(line[1:]).split(";"):
-          self.run_line(log_line)
+        self.replay(" ".join(line[1:]))
       else:
         card_name = line[0]
         dest_where = line[1]
@@ -317,11 +321,14 @@ class Game:
   def repl(self):
     while True:
       self.render()
-      print self.quick_win()
+
+      if self.test_win(True):
+        print "#WINNING"
+        self.quit_loop()
 
       try:
         line = raw_input("\n? ")
-        self.run_line(line)
+        self.one_line(line)
       except EOFError:
         self.quit_loop()
 
