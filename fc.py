@@ -233,6 +233,20 @@ class Game:
     return quick_win
 
 
+  def log_move(self, move):
+    """record a log of the moves"""
+    self.moves.append(move)
+
+    with open("freecell.log", "w") as f:
+      f.write("REPLAY " + "; ".join(self.moves))
+
+
+  def replay_moves(self, log_moves):
+    """replay a log of the moves, line by line"""
+    for log_line in log_moves.split(";"):
+      self.one_line(log_line)
+
+
   def do_play_foundation(self, move, position, card, f):
     print "play %s in FOUNDATION" % (position)
 
@@ -242,7 +256,7 @@ class Game:
     position.depth = 0
     position.weight = 0
 
-    self.moves.append(move)
+    self.log_move(move)
 
 
   def try_play_foundation(self, move, card_name):
@@ -278,7 +292,7 @@ class Game:
     position.depth = 0
     position.weight = 0
 
-    self.moves.append(move)
+    self.log_move(move)
 
 
   def try_move_open_cell(self, move, card_name):
@@ -310,7 +324,7 @@ class Game:
     position.depth = len(c) - 1
     position.weight = 0
 
-    self.moves.append(move)
+    self.log_move(move)
 
 
   def try_build_cascade(self, move, card_name, dest_index):
@@ -346,12 +360,6 @@ class Game:
   @staticmethod
   def show_error(line):
     print "incomprehsible garble...%s\n" % (line)
-
-
-  def replay_moves(self, log_moves):
-    """replay a log of the moves, line by line"""
-    for log_line in log_moves.split(";"):
-      self.one_line(log_line)
 
 
   def one_line(self, raw_line):
