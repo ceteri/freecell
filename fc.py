@@ -53,6 +53,9 @@ class Stack:
   def pop(self):
     return self.__items.pop()
 
+  def remove(self, item):
+    self.__items.remove(item)
+
   def peek(self):
     return self.__items[-1] if len(self.__items) > 0 else None
 
@@ -231,10 +234,36 @@ class Game:
 
 
   def play_foundation(self, move, card_name):
-    position = self.layout[card_name]
-    card = position.item
+    position = self.layout[card_name].item
+    card = position.card
+    f = self.fond[card.suit]
+    can_play = False
 
-    print "play %s in FOUNDATION" % (card)
+    if (f.is_empty() and card.rank == 0) or (f.peek().rank == card.rank - 1):
+      if position.where == self.WHERE_CASCADE:
+        cascade = self.cascades[position.index]
+
+        if cascade.peek() == card:
+          cascade.pop()
+          can_play = True
+      elif position.where == self.WHERE_OPEN:
+        self.open.remove(card)
+        can_play = True
+
+      if can_play:
+          print "play %s in FOUNDATION" % (position)
+
+          f.push(card)
+          position.where = self.WHERE_FOUNDATION
+          position.index = 0
+          position.depth = 0
+          position.weight = 0
+
+          self.moves.append(move)
+      else:
+        print "CARD NOT PLAYABLE"
+    else:
+      print "ILLEGAL MOVE"
 
 
   def move_open_cell(self, move, card_name):
