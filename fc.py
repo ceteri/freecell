@@ -14,14 +14,14 @@ def repr_card(card):
   return Card.RANK_STR[card.rank] + Card.SUIT_STR[card.suit]
 
 def can_stack(card, under):
-  if (card.rank - under.rank) != 1:
-      return False
+  if (under.rank - card.rank) != 1:
+    return False
   elif under.suit in [0, 3] and card.suit not in [1, 2]:
-      return False
+    return False
   elif under.suit in [1, 2] and card.suit not in [0, 3]:
-      return False
+    return False
   else:
-      return True
+    return True
 
 def parse_card(str):
   rank, suit = list(str)
@@ -233,58 +233,65 @@ class Game:
     return quick_win
 
 
-  def play_foundation(self, move, card_name):
+  def do_play_foundation(self, move, position, card, f):
+    print "play %s in FOUNDATION" % (position)
+
+    f.push(card)
+    position.where = self.WHERE_FOUNDATION
+    position.index = 0
+    position.depth = 0
+    position.weight = 0
+
+    self.moves.append(move)
+
+
+  def try_play_foundation(self, move, card_name):
+    """try to play a card to a foundation"""
     position = self.layout[card_name].item
     card = position.card
     f = self.fond[card.suit]
-    can_play = False
 
     if (f.is_empty() and card.rank == 0) or (f.peek().rank == card.rank - 1):
       if position.where == self.WHERE_CASCADE:
-        cascade = self.cascades[position.index]
+        current_c = self.cascades[position.index]
 
-        if cascade.peek() == card:
-          cascade.pop()
-          can_play = True
+        if current_c.peek() == card:
+          current_c.pop()
+          self.do_play_foundation(move, position, card, f)
+        else:
+          print "CARD NOT PLAYABLE"
       elif position.where == self.WHERE_OPEN:
         self.open.remove(card)
-        can_play = True
-
-      if can_play:
-          print "play %s in FOUNDATION" % (position)
-
-          f.push(card)
-          position.where = self.WHERE_FOUNDATION
-          position.index = 0
-          position.depth = 0
-          position.weight = 0
-
-          self.moves.append(move)
+        self.do_play_foundation(move, position, card, f)
       else:
         print "CARD NOT PLAYABLE"
     else:
       print "ILLEGAL MOVE"
 
 
-  def move_open_cell(self, move, card_name):
+  def do_move_open_cell(self, move, position, card):
+    print "move %s to OPEN CELL" % (position)
+
+    self.open.push(card)
+    position.where = self.WHERE_OPEN
+    position.index = 0
+    position.depth = 0
+    position.weight = 0
+
+    self.moves.append(move)
+
+
+  def try_move_open_cell(self, move, card_name):
+    """try to move a card to an open cell"""
     position = self.layout[card_name].item
     card = position.card
+    current_c = self.cascades[position.index]
 
     if len(self.open) <= self.N_OPEN:
       if position.where == self.WHERE_CASCADE:
-        cascade = self.cascades[position.index]
-
-        if cascade.peek() == card:
-          print "move %s to OPEN CELL" % (position)
-          cascade.pop()
-
-          self.open.push(card)
-          position.where = self.WHERE_OPEN
-          position.index = 0
-          position.depth = 0
-          position.weight = 0
-
-          self.moves.append(move)
+        if current_c.peek() == card:
+          current_c.pop()
+          self.do_move_open_cell(move, position, card)
         else:
           print "CARD NOT PLAYABLE"
       else:
@@ -293,11 +300,41 @@ class Game:
       print "NO OPEN CELLS"
 
 
-  def build_cascade(self, move, card_name, dest_index):
-    position = self.layout[card_name]
-    card = position.item
+  def do_build_cascade(self, move, position, card, c):
+    c_index = self.cascades.index(c)
+    print "build %s on CASCADE %s" % (position, c_index)
 
-    print "build %s on CASCADE %d" % (card, dest_index)
+    c.push(card)
+    position.where = self.WHERE_CASCADE
+    position.index = c_index
+    position.depth = len(c) - 1
+    position.weight = 0
+
+    self.moves.append(move)
+
+
+  def try_build_cascade(self, move, card_name, dest_index):
+    """try to build a card on a cascade"""
+    position = self.layout[card_name].item
+    card = position.card
+    c = self.cascades[dest_index]
+
+    if c.is_empty() or card.can_stack(c.peek()):
+      if position.where == self.WHERE_CASCADE:
+        current_c = self.cascades[position.index]
+
+        if current_c.peek() == card:
+          current_c.pop()
+          self.do_build_cascade(move, position, card, c)
+        else:
+          print "CARD NOT PLAYABLE"
+      elif position.where == self.WHERE_OPEN:
+        self.open.remove(card)
+        self.do_build_cascade(move, position, card, c)
+      else:
+          print "CARD NOT PLAYABLE"
+    else:
+      print "ILLEGAL MOVE"
 
 
   @staticmethod
@@ -328,6 +365,12 @@ class Game:
       elif "REPLAY".startswith(line[0]):
         log_moves = " ".join(line[1:])
         self.replay_moves(log_moves)
+      elif "UNDO".startswith(line[0]):
+        log_moves = "; ".join(self.moves[:-1])
+        self.reset(self.seed)
+        self.replay_moves(log_moves)
+      elif "ZAP".startswith(line[0]):
+        self.reset(self.seed)
       else:
         card_name = line[0]
         dest_where = line[1]
@@ -336,14 +379,14 @@ class Game:
           self.show_error(line)
 
         elif "FOUNDATION".startswith(dest_where):
-          self.play_foundation(move, card_name)
+          self.try_play_foundation(move, card_name)
 
         elif "OPEN".startswith(dest_where):
-          self.move_open_cell(move, card_name)
+          self.try_move_open_cell(move, card_name)
 
         elif "CASCADE".startswith(dest_where):
           dest_index = int(line[2])
-          self.build_cascade(move, card_name, dest_index)
+          self.try_build_cascade(move, card_name, dest_index)
 
         else:
           print "huh?"
