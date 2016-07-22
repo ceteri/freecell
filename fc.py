@@ -172,13 +172,17 @@ class Game:
         self.fond_tail[card.suit] = link
 
 
-  def __init__(self, seed):
+  def __init__(self, seed, verbose=True, persist=True, log_file="freecell.log"):
     self.reset(seed)
+    self.verbose = verbose
+    self.persist = persist
+    self.log_file = log_file
 
     # (temp) show the initial layout
-    for suit in xrange(self.N_SUITS):
-      for position in reversed(self.fond_tail[suit]):
-        print position
+    if verbose:
+      for suit in xrange(self.N_SUITS):
+        for position in reversed(self.fond_tail[suit]):
+          print position
 
 
   def render(self):
@@ -210,7 +214,7 @@ class Game:
     print
 
 
-  def test_win(self, verbose=False):
+  def test_win(self):
     """is the game won at this point?"""
     quick_win = True
 
@@ -227,7 +231,7 @@ class Game:
         if gradient < 0:
           quick_win = False
 
-      if verbose:
+      if self.verbose:
         print " | ".join([g for g in g_list])
 
     return quick_win
@@ -237,8 +241,9 @@ class Game:
     """record a log of the moves"""
     self.moves.append(move)
 
-    with open("freecell.log", "w") as f:
-      f.write("REPLAY " + "; ".join(self.moves))
+    if self.persist:
+      with open(self.log_file, "w") as f:
+        f.write("REPLAY " + "; ".join(self.moves))
 
 
   def replay_moves(self, log_moves):
@@ -407,9 +412,10 @@ class Game:
 
   def repl(self):
     while True:
-      self.render()
+      if self.verbose:
+        self.render()
 
-      if self.test_win(True):
+      if self.test_win():
         print "#WINNING"
         self.quit_loop()
 
